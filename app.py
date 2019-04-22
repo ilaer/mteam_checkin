@@ -55,7 +55,9 @@ if 'mteam' in conf.sections():
             mteam_last_checkin =i[0]
 else:
     sys.exit()
-
+if mteam_username=='' or mteam_password=='':
+    showinfo("错误", "config.ini配置文件里的帐号或密码为空！！")
+    sys.exit()
 if 'app' in conf.sections():
     for i in conf.items('app'):
         if 'default_frame' in i:
@@ -112,7 +114,7 @@ class Mteam_Checkin(Thread):
             s = requests.session()
             r1=s.post(url=self.login_url, headers=headers, data=post_data,  verify=False)
 
-            if r1.status_code == requests.codes.ok and 'ila2002' in r1.content:
+            if r1.status_code == requests.codes.ok and 'ila2002' in BeautifulSoup( r1.content,'html.parser'):
 
                 self.conf.set('mteam','last_login',time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(time.time()))))
                 self.conf.write(open(ini_path, "r+"))
@@ -142,6 +144,8 @@ class Mteam_Checkin(Thread):
             self.mteam_label_text.set(
                 '最后签到:{}'.format(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(time.time())))))
             t1 = float(time.time())
+
+        mteam_run_flag=0
         # 跳出循环，停止签到
         self.mteam_text.insert(1.0, '{},mteam停止签到！\n###############\n'.format(
             time.strftime('%y-%m-%d %H:%M:%S', time.localtime(int(time.time())))))
