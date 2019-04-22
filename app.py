@@ -63,12 +63,12 @@ if 'app' in conf.sections():
 else:
     sys.exit()
 
-mteam_flag = 1
-
+mteam_cycle_flag = 1#mteam循环签到flag，1为循环，0为停止循环
+mteam_run_flag=0#mteam启动状态flag，1为已启动，0为未启动
 
 class Mteam_Checkin(Thread):
     def __init__(self, username, password, login_url, checkin_url, mteam_text, mteam_label_text, mteam_log,
-                 mteam_interval):
+                 mteam_interval,conf):
         Thread.__init__(self)
         self.username = username
         self.passsword = password
@@ -78,9 +78,10 @@ class Mteam_Checkin(Thread):
         self.mteam_label_text = mteam_label_text
         self.mteam_log = mteam_log
         self.mteam_interval = mteam_interval
-
+        self.conf=conf
     def run(self):
-        global mteam_flag
+        global mteam_cycle_flag,mteam_run_flag
+        mteam_run_flag=1
         headers = {'Accept': 'text/html, application/xhtml+xml, */*',
                    'Accept-Encoding': 'gzip, deflate',
                    'Accept-Language': 'zh-CN',
@@ -99,7 +100,7 @@ class Mteam_Checkin(Thread):
         t1 = float(time.time())
         mteam_num = 0
         while 1:
-            if mteam_flag == 0:
+            if mteam_cycle_flag == 0:
                 break
             if mteam_num > 0:
                 if float(time.time()) - t1 < random.uniform(float(self.mteam_interval),float(self.mteam_interval) + 60):
@@ -110,12 +111,21 @@ class Mteam_Checkin(Thread):
             self.mteam_log.warning('###############\n开始mteam本次登录。')
             s = requests.session()
             r1=s.post(url=self.login_url, headers=headers, data=post_data,  verify=False)
-            if r1.status_code == requests.codes.ok:
+
+            if r1.status_code == requests.codes.ok and 'ila2002' in r1.content:
+
+                self.conf.set('mteam','last_login',time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(time.time()))))
+                self.conf.write(open(ini_path, "r+"))
+
                 self.mteam_text.insert(1.0, '{},mteam登录成功。\n'.format(
                     time.strftime('%y-%m-%d %H:%M:%S', time.localtime(int(time.time())))))
                 self.mteam_log.warning('mteam登录成功。')
                 r2 = s.get(url=self.checkin_url, headers=headers,  verify=False)
                 if r2.status_code == requests.codes.ok:
+
+                    self.conf.set('mteam', 'last_checkin',time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(time.time()))))
+                    self.conf.write(open(ini_path, "r+"))
+
                     self.mteam_text.insert(1.0, '{},mteam签到成功。\n'.format(
                         time.strftime('%y-%m-%d %H:%M:%S', time.localtime(int(time.time())))))
                     self.mteam_log.warning('mteam签到成功。')
@@ -147,6 +157,8 @@ class Application(Application_ui):
         # globals()['self.{}'.format(default_frame)].tkraise()
         self.mteam_frame.tkraise()
 
+
+
         self.level_relations = {
             'debug': logging.DEBUG,
             'info': logging.INFO,
@@ -165,6 +177,13 @@ class Application(Application_ui):
 
         self.mteam_log = self.Logger('{}_mteam.log'.format(time.strftime('%Y-%m-%d', time.localtime(int(time.time())))),
                                      level='warning')
+
+        #gui启动时开始自动签到
+        if mteam_run_flag==0:
+            mc1 = Mteam_Checkin(mteam_username, mteam_password, mteam_login_url,
+                                 mteam_checkin_url, self.mteam_text, self.mteam_label_text, self.mteam_log,
+                                 mteam_interval,conf)
+            mc1.start()
 
     def Logger(self, filename, level='info', when='D', backCount=180,
                fmt='%(asctime)s -[line:%(lineno)d] - %(levelname)s: %(message)s'):  # %(pathname)s
@@ -201,15 +220,17 @@ class Application(Application_ui):
 
     def mteam_start_Cmd(self, event=None):
         # TODO, Please finish the function here!
-        mc1 = Mteam_Checkin(mteam_username, mteam_password, mteam_login_url,
-                             mteam_checkin_url, self.mteam_text, self.mteam_label_text, self.mteam_log,
-                             mteam_interval)
-        mc1.start()
+        if mteam_run_flag==0:
+            mc1 = Mteam_Checkin(mteam_username, mteam_password, mteam_login_url,
+                                 mteam_checkin_url, self.mteam_text, self.mteam_label_text, self.mteam_log,
+                                 mteam_interval,conf)
+            mc1.start()
+
 
     def mteam_stop_Cmd(self, event=None):
         # TODO, Please finish the function here!
-        global mteam_flag
-        mteam_flag = 0
+        global mteam_cycle_flag
+        mteam_cycle_flag = 0
 
     def mteam_checkbutton_Cmd(self, event=None):
         # TODO, Please finish the function here!
