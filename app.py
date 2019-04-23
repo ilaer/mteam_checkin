@@ -114,7 +114,7 @@ class Mteam_Checkin(Thread):
             s = requests.session()
             r1=s.post(url=self.login_url, headers=headers, data=post_data,  verify=False)
 
-            if r1.status_code == requests.codes.ok and 'ila2002' in BeautifulSoup( r1.content,'html.parser'):
+            if r1.status_code == requests.codes.ok and self.username in BeautifulSoup( r1.content,'html.parser'):
 
                 self.conf.set('mteam','last_login',time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(time.time()))))
                 self.conf.write(open(ini_path, "r+"))
